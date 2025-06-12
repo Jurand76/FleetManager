@@ -1,0 +1,19 @@
+{% extends 'fleet/base.html' %}
+
+{% block content %}
+    <h1>Wyniki Analizy AI</h1>
+    <a href="{% url 'car_selection' %}">&larr; Wróć do formularza</a>
+
+    <h3>Twoje kryteria:</h3>
+    <ul>
+        <li><strong>Klasa:</strong> {{ criteria.car_class }}</li>
+        <li><strong>Paliwo:</strong> {{ criteria.fuel_type }}</li>
+        <li><strong>Cena do:</strong> {{ criteria.price_new }} PLN</li>
+        <li><strong>Wyposażenie:</strong> {{ criteria.equipment|join:", " }}</li>
+    </ul>
+
+    <div class="result-box">
+        <h3>Rekomendacja AI:</h3>
+        {{ result }}
+    </div>
+{% endblock %}

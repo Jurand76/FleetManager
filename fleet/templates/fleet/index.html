@@ -1,0 +1,12 @@
+{% extends 'fleet/base.html' %}
+
+{% block content %}
+    <h1>Asystent Wyboru Samochodu Firmowego</h1>
+    <p>Podaj kryteria, a AI przeanalizuje naszą bazę danych i zaproponuje najlepsze rozwiązanie.</p>
+
+    <form method="post">
+        {% csrf_token %}
+        {{ form.as_p }}
+        <button type="submit">Znajdź samochód</button>
+    </form>
+{% endblock %}

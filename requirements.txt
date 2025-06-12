@@ -1,8 +1,11 @@
 django
 anthropic
 langchain-anthropic
+langchain-community
 langchain
 pypdf
+torch
 faiss-cpu # Baza wektorowa działająca na CPU
 sentence-transformers # Do tworzenia embeddingów
 python-dotenv
+langchain-huggingface
