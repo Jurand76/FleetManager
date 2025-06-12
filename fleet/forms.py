@@ -28,13 +28,13 @@ class CarDataForm(forms.Form):
 
     car_class = forms.MultipleChoiceField(
         choices=CLASS_CHOICES,
-        widget=forms.CheckboxSelectMultiple,
+        widget=forms.SelectMultiple(attrs={'class': 'tom-select-multiple'}),
         label="Klasa samochodu - można wybrać kilka",
         required=False
     )
     fuel_type = forms.MultipleChoiceField(
         choices=FUEL_TYPE_CHOICES,
-        widget=forms.CheckboxSelectMultiple,
+        widget=forms.SelectMultiple(attrs={'class': 'tom-select-multiple'}),
         label="Rodzaj paliwa - można wybrać kilka",
         required=False
     )
@@ -43,9 +43,25 @@ class CarDataForm(forms.Form):
 
     equipment = forms.MultipleChoiceField(
         choices=EQUIPMENT_CHOICES,
-        widget=forms.CheckboxSelectMultiple,
+        widget=forms.CheckboxSelectMultiple(attrs={'class': 'tom-select-multiple'}),
         label="Wyposażenie (opcjonalne)",
         required=False
     )
 
-    price_new = forms.IntegerField(label="Cena zakupu (PLN)", min_value=0)
+    price_new = forms.IntegerField(label="Cena zakupu (PLN)", min_value=0, widget=forms.NumberInput(attrs={'class': 'form-input'}))
+
+    # Parametry do analizy TCO
+    exploitation_period = forms.IntegerField(label="Okres eksploatacji (lata)", min_value=1, max_value=5,
+                                             widget=forms.NumberInput(attrs={'class': 'form-input'}))
+    max_mileage = forms.IntegerField(label="Maksymalny zakładany przebieg (km)", min_value=1000,
+                                     widget=forms.NumberInput(attrs={'class': 'form-input'}))
+    service_cost = forms.IntegerField(label="Szacunkowy koszt jednego przeglądu (PLN)", min_value=0,
+                                      widget=forms.NumberInput(attrs={'class': 'form-input'}))
+
+    # Ceny paliw
+    petrol_price = forms.DecimalField(label="Cena benzyny (PLN/l)", initial=6.00, min_value=0, decimal_places=2,
+                                      widget=forms.NumberInput(attrs={'class': 'form-input'}))
+    diesel_price = forms.DecimalField(label="Cena oleju napędowego (PLN/l)", initial=6.00, min_value=0,
+                                      decimal_places=2, widget=forms.NumberInput(attrs={'class': 'form-input'}))
+    electricity_price = forms.DecimalField(label="Cena energii elektrycznej (PLN/kWh)", initial=1.80, min_value=0,
+                                           decimal_places=2, widget=forms.NumberInput(attrs={'class': 'form-input'}))

@@ -10,10 +10,13 @@
         <li><strong>Paliwo:</strong> {{ criteria.fuel_type }}</li>
         <li><strong>Cena do:</strong> {{ criteria.price_new }} PLN</li>
         <li><strong>Wyposażenie:</strong> {{ criteria.equipment|join:", " }}</li>
+        <li><strong>Okres eksploatacji:</strong> {{ criteria.exploitation_period }} lat</li>
+        <li><strong>Zakładany przebieg:</strong> {{ criteria.max_mileage }} km</li>
+        <li><strong>Koszt przeglądu:</strong> {{ criteria.service_cost }} PLN</li>
     </ul>
 
     <div class="result-box">
         <h3>Rekomendacja AI:</h3>
-        {{ result }}
+        {{ result|safe }}
     </div>
 {% endblock %}
