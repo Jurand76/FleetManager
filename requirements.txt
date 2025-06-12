@@ -1,0 +1,8 @@
+django
+anthropic
+langchain-anthropic
+langchain
+pypdf
+faiss-cpu # Baza wektorowa działająca na CPU
+sentence-transformers # Do tworzenia embeddingów
+python-dotenv
