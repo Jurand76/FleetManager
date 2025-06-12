@@ -39,7 +39,7 @@ class RAGProcessor:
         self.vector_store = FAISS.load_local(VECTORSTORE_PATH, self.embeddings, allow_dangerous_deserialization=True)
         print("Baza wektorowa załadowana.")
 
-    def find_relevant_context(self, query: str, k: int = 5) -> str:
+    def find_relevant_context(self, query: str, k: int = 20) -> str:
         """Wyszukuje relevantne fragmenty tekstu dla danego zapytania."""
         if not self.vector_store:
             print("Baza wektorowa nie jest załadowana. Utwórz ją najpierw.")

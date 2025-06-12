@@ -11,12 +11,21 @@ FUEL_TYPE_CHOICES = [
 ]
 
 EQUIPMENT_CHOICES = [
-    ('klimatyzacja automatyczna', 'Klimatyzacja automatyczna'),
+    ('klimatyzacja automatyczna dwustrefowa', 'Klimatyzacja automatyczna dwustrefowa'),
+    ('klimatyzacja automatyczna trzystrefowa', 'Klimatyzacja automatyczna trójstrefowa'),
+    ('światła LED', 'światła LED'),
+    ('napęd AWD', 'Napęd AWD'),
     ('skórzana tapicerka', 'Skórzana tapicerka'),
+    ('podgrzewane fotele', 'Podgrzewane fotele'),
     ('nawigacja GPS', 'Nawigacja GPS'),
     ('kamera cofania', 'Kamera cofania'),
-    ('aktywny tempomat', 'Aktywny tempomat'),
-    ('podgrzewane fotele', 'Podgrzewane fotele'),
+    ('kamera 360 stopni', 'Kamera 360 stopni'),
+    ('tempomat adaptacyjny', 'Aktywny tempomat'),
+    ('asystent pasa ruchu', 'Asystent pasa ruchu'),
+    ('automatyczne odczytywanie znaków drogowych', 'Odczytywanie znaków drogowych'),
+    ('czujniki parkowania', 'Czujniki parkowania'),
+    ('skrzynia biegów automatyczna', 'Skrzynia biegów automatyczna'),
+    ('zawieszenie regulowane', 'Zawieszenie regulowane')
 ]
 
 
@@ -43,7 +52,7 @@ class CarDataForm(forms.Form):
 
     equipment = forms.MultipleChoiceField(
         choices=EQUIPMENT_CHOICES,
-        widget=forms.CheckboxSelectMultiple(attrs={'class': 'tom-select-multiple'}),
+        widget=forms.SelectMultiple(attrs={'class': 'tom-select-multiple'}),
         label="Wyposażenie (opcjonalne)",
         required=False
     )
