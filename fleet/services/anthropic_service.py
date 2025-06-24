@@ -77,7 +77,8 @@ class AnthropicService:
             - Ceny paliw: Benzyna={petrol_price} PLN/l, Diesel={diesel_price} PLN/l, Prąd={electricity_price} PLN/kWh
 
             **KROK 2: Wykonaj obliczenia TCO**
-            Dla każdego pasującego samochodu w kontekście, wykonaj poniższe obliczenia. Przedstaw swoje obliczenia w sposób przejrzysty.
+            Znajdź 5 samochodów spełniających kryteria wyboru. Dla każdego samochodu w kontekście, wykonaj poniższe obliczenia. Przedstaw swoje obliczenia w sposób przejrzysty.
+            
 
             1.  **Utrata Wartości:**
                 a. Znajdź w kontekście cenę zakupu (`price_new`) oraz wartość rezydualną po `{exploitation_period}` latach.
