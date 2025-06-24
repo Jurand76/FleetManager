@@ -1,4 +1,5 @@
 import os
+import json
 from langchain_anthropic import ChatAnthropic
 from langchain.prompts import ChatPromptTemplate
 from .rag_processor import RAGProcessor
@@ -6,238 +7,239 @@ from .rag_processor import RAGProcessor
 
 class AnthropicService:
     def __init__(self):
-        self.rag_processor = RAGProcessor()
-        self.chat_model = ChatAnthropic(
-            model="claude-opus-4-20250514",  # Możesz wybrać inny model, np. Haiku
+        # Model 1: Szybki, do analizy TCO na podstawie Twoich danych (RAG)
+        self.tco_model = ChatAnthropic(
+            model="claude-opus-4-20250514",
             api_key=os.getenv("ANTHROPIC_API_KEY"),
-            max_tokens = 4096
+            max_tokens=4096
         )
+        # Model 2: Potężny, do analizy awaryjności na podstawie wiedzy ogólnej
+        self.failure_analysis_model = ChatAnthropic(
+            model="claude-opus-4-20250514",
+            api_key=os.getenv("ANTHROPIC_API_KEY"),
+            max_tokens=8192
+        )
+        # Model 3: "Dyrektor floty", do ostatecznego podsumowania
+        self.summary_model = ChatAnthropic(
+            model="claude-opus-4-20250514",
+            api_key=os.getenv("ANTHROPIC_API_KEY"),
+            max_tokens=4096
+        )
+        self.rag_processor = RAGProcessor()
 
-    def get_car_recommendation(self, criteria: dict) -> str:
+    def _get_tco_analysis(self, criteria: dict) -> str:
         """
-        Generuje rekomendację samochodu na podstawie kryteriów i danych z PDF.
+        Prywatna metoda do generowania analizy TCO.
+        Zwraca string w formacie JSON zawierający raport HTML i listę rekomendowanych aut.
         """
-        # 1. Tworzenie zapytania do wyszukiwania w bazie wektorowej
-
-        #search_query = (
-        #    f"Marka: {criteria['car_producer']}, "
-        #    f"Model: {criteria['car_model']}, "
-        #    f"Wersja silnikowa: {criteria['engine']}, "
-        #    f"Moc: {criteria['engine_power']}, "
-        #    f"Klasa: {criteria['class']}, "
-        #    f"Paliwo: {criteria['fuel_type']}, "
-        #    f"Zużycie na 100km: {criteria['consumption']}, "
-        #    f"Przeglądy co km: {criteria['service_interval']} km "
-        #    f"Wyposażenie: {', '.join(criteria['equipment'])}, "
-        #    f"Cena zakupu: {criteria['price_new']}, "
-        #    f"Wartość po 1 roku: {criteria['price_1_year']}, "
-        #    f"Wartość po 2 latach: {criteria['price_2_year']}, "
-        #    f"Wartość po 3 latach: {criteria['price_3_year']}, "
-        #    f"Wartość po 4 latach: {criteria['price_4_year']}, "
-        #    f"Wartość po 5 latach: {criteria['price_5_year']}"
-        #)
         car_classes_str = ", ".join(criteria['car_class'])
         fuel_types_str = ", ".join(criteria['fuel_type'])
-
         search_query = (
             f"Klasy: {car_classes_str}, "
             f"Paliwo: {fuel_types_str}, "
             f"Wyposażenie: {', '.join(criteria['equipment'])}, "
-            f"Cena zakupu: {criteria['price_new']}, "
+            f"Cena zakupu do: {criteria['price_new']}"
         )
 
-        # 2. Pobieranie relevantnego kontekstu z bazy wektorowej
-        context = self.rag_processor.find_relevant_context(search_query)
-
+        context = self.rag_processor.find_relevant_context(search_query, k=20)  # Zwiększono kontekst do 20
         if not context:
-            return "Nie udało się znaleźć pasujących informacji w bazie danych. Spróbuj zmienić kryteria."
+            return json.dumps(
+                {"html_report": "<p>Nie udało się znaleźć pasujących informacji w bazie danych do analizy TCO.</p>",
+                 "recommended_cars": []})
 
-        # 3. Definicja szablonu promptu
         prompt_template = ChatPromptTemplate.from_template(
             """
-            Jesteś ekspertem ds. flot samochodowych. Twoim zadaniem jest pomoc w wyborze idealnego samochodu na podstawie danych i kryteriów.
-            
-            **ZADANIE GŁÓWNE:** Twoja odpowiedź MUSI być kodem HTML. Użyj podanej struktury i klas CSS. Nie dołączaj tagów `<html>`, `<head>`, `<body>` ani ```html. Wygeneruj tylko kod HTML, który będzie można wstawić do istniejącej strony.**
-            
-            **KROK1: Przeanalizuj dostarczone dane:**
-            
-            * **Kontekst z bazy danych pojazdów**
-            --- KONTEKST ---
+            Jesteś analitykiem flotowym. Twoja odpowiedź MUSI być poprawnym obiektem JSON. Nie dołączaj żadnych wyjaśnień poza JSONem.
+            Struktura JSON:
+            {{
+                "html_report": "...",
+                "recommended_cars": ["pełna nazwa auta 1", "pełna nazwa auta 2", "itd..."]
+            }}
+
+            W kluczu "html_report" umieść kod HTML z analizą TCO.
+            W kluczu "recommended_cars" umieść listę PEŁNYCH NAZW **wszystkich** modeli, które przedstawiasz w raporcie HTML (zarówno rekomendację, jak i alternatywy). Ich liczba musi się zgadzać.
+
+            KONTEKST Z BAZY DANYCH:
+            ---
             {context}
-            --- KONIEC KONTEKSTU ---
+            ---
 
-            * ** Kryteria wyboru podane przez menedżera floty:**
-            - Klasa samochodu: {car_class} - najważniejsze kryterium, nie podawaj aut z innych klas
-            - Rodzaj paliwa: {fuel_type} - najważniejsze kryterium, nie podawaj samochodów z innymi rodzajami paliw
-            - Maksymalna cena: {price_new} PLN
-            - Wymagane wyposażenie: {equipment}
+            KRYTERIA OD MENEDŻERA:
+            - Klasy: {car_class} (najważniejsze)
+            - Paliwo: {fuel_type} (najważniejsze)
+            - Cena do: {price_new} PLN
+            - Wyposażenie: {equipment}
             - Okres eksploatacji: {exploitation_period} lat
-            - Maksymalny przebieg: {max_mileage} km
-            - Szacunkowy koszt jednego przeglądu: {service_cost} PLN
-            - Ceny paliw: Benzyna={petrol_price} PLN/l, Diesel={diesel_price} PLN/l, Prąd={electricity_price} PLN/kWh
+            - Przebieg: {max_mileage} km
+            - Koszt przeglądu: {service_cost} PLN
+            - Ceny paliw: Benzyna={petrol_price}, Diesel={diesel_price}, Prąd={electricity_price}
 
-            **KROK 2: Wykonaj obliczenia TCO**
-            Znajdź 5 samochodów spełniających kryteria wyboru. Dla każdego samochodu w kontekście, wykonaj poniższe obliczenia. Przedstaw swoje obliczenia w sposób przejrzysty.
-            
+            ZADANIE:
+            1. Znajdź w kontekście WSZYSTKIE samochody (do 5) spełniające najważniejsze kryteria (klasa, paliwo).
+            2. Dla każdego z nich oblicz TCO (Utrata Wartości + Koszt Paliwa + Koszt Serwisu), bazując na danych z kontekstu.
+            3. Wypełnij szablon HTML wynikami. Pokaż 1 auto jako główną rekomendację (najniższe TCO) i resztę jako alternatywy.
+            4. **Krytycznie ważne:** Zidentyfikuj WSZYSTKIE analizowane modele i umieść ich pełne nazwy w liście JSON `recommended_cars`. Jeśli w raporcie HTML są 4 samochody, na liście muszą być 4 nazwy.
 
-            1.  **Utrata Wartości:**
-                a. Znajdź w kontekście cenę zakupu (`price_new`) oraz wartość rezydualną po `{exploitation_period}` latach.
-                b. Oblicz: `Utrata Wartości = Cena Zakupu - Wartość Rezydualna`
-
-            2.  **Koszt Paliwa:**
-                a. Znajdź w kontekście zużycie paliwa (consumption). Upewnij się, że jednostki są poprawne (l/100km lub kWh/100km).
-                b. Oblicz: `Koszt Paliwa = ({max_mileage} / 100) * Zużycie Paliwa * Cena Paliwa` (użyj odpowiedniej ceny dla danego typu paliwa).
-
-            3.  **Koszt Serwisu:**
-                a. Znajdź w kontekście interwał serwisowy - Przeglądy co km - (`service_interval`).
-                b. Oblicz: `Koszt Serwisu = ({max_mileage} / Interwał Serwisowy) * Koszt Jednego Przeglądu`
-
-            4.  **Całkowity Koszt Posiadania (TCO):**
-                a. Oblicz: `TCO = Utrata Wartości + Koszt Paliwa + Koszt Serwisu`
-                
-            **KROK 3: Sformułuj rekomendację w formacie HTML**
-            Użyj poniższej struktury HTML do sformatowania swojej odpowiedzi. Wypełnij ją wynikami swoich obliczeń.
-
-            ```html
+            SZABLON HTML:
             <div class="analysis-container">
-                <!-- Główna rekomendacja -->
                 <div class="card recommendation-card">
-                    <div class="card-header">
-                        <span class="badge">Rekomendacja</span>
-                        <h3>[Nazwa polecanego samochodu]</h3>
-                    </div>
+                    <div class="card-header"><span class="badge">Rekomendacja TCO</span><h3>[Nazwa polecanego samochodu]</h3></div>
                     <div class="card-body">
-                        <p>[Szczegółowe uzasadnienie, dlaczego ten samochód jest najlepszy pod kątem TCO. Odnieś się do obliczeń.]</p>
-                        <h4>Analiza TCO dla [Nazwa polecanego samochodu]</h4>
+                        <p>[Uzasadnienie wyboru pod kątem TCO.]</p>
                         <table class="tco-table">
-                            <thead>
-                                <tr>
-                                    <th>Składnik TCO</th>
-                                    <th>Obliczenia</th>
-                                    <th>Koszt</th>
-                                </tr>
-                            </thead>
+                            <thead><tr><th>Składnik TCO</th><th>Obliczenia</th><th>Koszt</th></tr></thead>
                             <tbody>
-                                <tr>
-                                    <td>Utrata Wartości</td>
-                                    <td>[np. 150000 PLN - 75000 PLN]</td>
-                                    <td>[np. 75000 PLN]</td>
-                                </tr>
-                                <tr>
-                                    <td>Koszt Paliwa</td>
-                                    <td>[np. (100000km / 100) * 5.5l * 6.00 PLN]</td>
-                                    <td>[np. 33000 PLN]</td>
-                                </tr>
-                                <tr>
-                                    <td>Koszt Serwisu</td>
-                                    <td>[np. (100000km / 30000km) * 1200 PLN]</td>
-                                    <td>[np. 3600 PLN]</td>
-                                </tr>
+                                <tr><td>Utrata Wartości</td><td>[np. 150000 PLN - 75000 PLN]</td><td>[np. 75000 PLN]</td></tr>
+                                <tr><td>Koszt Paliwa</td><td>[np. (100000km / 100) * 5.5l * 6.00 PLN]</td><td>[np. 33000 PLN]</td></tr>
+                                <tr><td>Koszt Serwisu</td><td>[np. (100000km / 30000km) * 1200 PLN]</td><td>[np. 3600 PLN]</td></tr>
                             </tbody>
-                            <tfoot>
-                                <tr>
-                                    <td colspan="2">Całkowity Koszt Posiadania (TCO)</td>
-                                    <td><strong>[np. 111600 PLN]</strong></td>
-                                </tr>
-                            </tfoot>
+                            <tfoot><tr><td colspan="2">Całkowity Koszt Posiadania (TCO)</td><td><strong>[np. 111600 PLN]</strong></td></tr></tfoot>
                         </table>
                     </div>
                 </div>
-
-                <!-- Alternatywy -->
-                <h4>Rozważane alternatywy</h4>
+                <h4>Rozważane alternatywy (TCO)</h4>
                 <div class="alternatives-grid">
                     <div class="card alternative-card">
-                        <div class="card-header">
-                            <h5>[Nazwa alternatywy 1]</h5>
-                        </div>
-                        <div class="card-body">
-                            <p>[Krótkie uzasadnienie, dlaczego ten model jest gorszym wyborem. Porównaj jego TCO z rekomendowanym modelem.]</p>
-                            <p><strong>Szacowane TCO: [Koszt TCO dla alternatywy 1]</strong></p>
-                        </div>
+                        <div class="card-header"><h5>[Nazwa alternatywy 1]</h5></div>
+                        <div class="card-body"><p>[Krótkie uzasadnienie]</p><p><strong>Szacowane TCO: [Koszt]</strong></p></div>
                     </div>
-                    <div class="card alternative-card">
-                         <div class="card-header">
-                            <h5>[Nazwa alternatywy 2]</h5>
-                        </div>
-                        <div class="card-body">
-                            <p>[Krótkie uzasadnienie, dlaczego ten model jest gorszym wyborem.]</p>
-                            <p><strong>Szacowane TCO: [Koszt TCO dla alternatywy 2]</strong></p>
-                        </div>
-                    </div>
-                     <div class="card alternative-card">
-                        <div class="card-header">
-                            <h5>[Nazwa alternatywy 1]</h5>
-                        </div>
-                        <div class="card-body">
-                            <p>[Krótkie uzasadnienie, dlaczego ten model jest gorszym wyborem. Porównaj jego TCO z rekomendowanym modelem.]</p>
-                            <p><strong>Szacowane TCO: [Koszt TCO dla alternatywy 1]</strong></p>
-                        </div>
-                    </div>
-                    <div class="card alternative-card">
-                         <div class="card-header">
-                            <h5>[Nazwa alternatywy 2]</h5>
-                        </div>
-                        <div class="card-body">
-                            <p>[Krótkie uzasadnienie, dlaczego ten model jest gorszym wyborem.]</p>
-                            <p><strong>Szacowane TCO: [Koszt TCO dla alternatywy 2]</strong></p>
-                        </div>
-                    </div>
-                     <div class="card alternative-card">
-                        <div class="card-header">
-                            <h5>[Nazwa alternatywy 3]</h5>
-                        </div>
-                        <div class="card-body">
-                            <p>[Krótkie uzasadnienie, dlaczego ten model jest gorszym wyborem. Porównaj jego TCO z rekomendowanym modelem.]</p>
-                            <p><strong>Szacowane TCO: [Koszt TCO dla alternatywy 3]</strong></p>
-                        </div>
-                    </div>
-                    <div class="card alternative-card">
-                         <div class="card-header">
-                            <h5>[Nazwa alternatywy 4]</h5>
-                        </div>
-                        <div class="card-body">
-                            <p>[Krótkie uzasadnienie, dlaczego ten model jest gorszym wyborem.]</p>
-                            <p><strong>Szacowane TCO: [Koszt TCO dla alternatywy 4]</strong></p>
-                        </div>
-                    </div>
+                    <!-- Powtórz dla wszystkich innych alternatyw -->
                 </div>
             </div>
-            ```
             """
         )
-
-        # 4. Formatowanie i wysłanie zapytania do AI
-        chain = prompt_template | self.chat_model
-
+        chain = prompt_template | self.tco_model
         response = chain.invoke({
-            "context": context,
-            "car_class": criteria['car_class'],
-            "fuel_type": criteria['fuel_type'],
-            "equipment": ", ".join(criteria['equipment']) if criteria['equipment'] else "brak dodatkowych wymagań",
-            "price_new": criteria['price_new'],
-            #"service_interval": criteria['service_interval'],
-            "exploitation_period": criteria['exploitation_period'],
-            "max_mileage": criteria['max_mileage'],
-            "service_cost": criteria['service_cost'],
-            "petrol_price": criteria['petrol_price'],
-            "diesel_price": criteria['diesel_price'],
+            "context": context, "car_class": car_classes_str, "fuel_type": fuel_types_str,
+            "equipment": ", ".join(criteria['equipment']) if criteria['equipment'] else "brak",
+            "price_new": criteria['price_new'], "exploitation_period": criteria['exploitation_period'],
+            "max_mileage": criteria['max_mileage'], "service_cost": criteria['service_cost'],
+            "petrol_price": criteria['petrol_price'], "diesel_price": criteria['diesel_price'],
             "electricity_price": criteria['electricity_price'],
         })
-
-        # response = chain.invoke({
-        #    "context": context,
-        #    "car_producer": criteria['car_producer'],
-        #    "car_model": criteria['car_model'],
-        #    "engine": criteria['engine'],
-        #    "engine_power": criteria['engine_power'],
-        #    "car_class": criteria['car_class'],
-        #    "fuel_type": criteria['fuel_type'],
-        #   "consumption": criteria['consumption'],
-        #    "service_interval": criteria['service_interval'],
-        #    "equipment": ", ".join(criteria['equipment']) if criteria['equipment'] else "brak dodatkowych wymagań",
-        #    "price_new": criteria['price_new'],
-        #})
-
         return response.content
 
+    def _get_failure_analysis(self, car_name: str) -> str:
+        """
+        Prywatna metoda do generowania analizy awaryjności dla danego modelu.
+        """
+        prompt_template = ChatPromptTemplate.from_template(
+            """
+            Jesteś ekspertem mechaniki samochodowej. Twoim zadaniem jest analiza potencjalnych awarii i kosztów utrzymania dla konkretnego modelu samochodu. Twoja odpowiedź MUSI być kodem HTML.
+
+            Model do analizy: **{car_name}**
+
+            ZADANIE:
+            Na podstawie swojej ogólnej wiedzy, stwórz raport w formacie HTML, który zawiera:
+            1.  **Najczęstsze Usterki:** Wypunktuj 3-5 typowych problemów dla tego modelu i generacji.
+            2.  **Akcje Serwisowe i Przywoławcze:** Wspomnij, czy ten model był objęty znaczącymi akcjami przywoławczymi.
+            3.  **Opinia Ogólna:** Krótkie podsumowanie dotyczące niezawodności.
+
+            Użyj poniższej struktury HTML:
+            <div class="card failure-card">
+                <div class="card-header">
+                     <span class="badge-failure">Analiza Awaryjności</span>
+                     <h5>{car_name}</h5>
+                </div>
+                <div class="card-body">
+                    <h6>Najczęstsze Usterki:</h6>
+                    <ul><li>[Opis usterki 1]</li><li>[Opis usterki 2]</li><li>[Opis usterki 3]</li></ul>
+                    <h6>Akcje Serwisowe:</h6>
+                    <p>[Informacje o akcjach serwisowych lub ich braku.]</p>
+                    <h6>Podsumowanie Niezawodności:</h6>
+                    <p>[Ogólna opinia o modelu.]</p>
+                </div>
+            </div>
+            """
+        )
+        chain = prompt_template | self.failure_analysis_model
+        response = chain.invoke({"car_name": car_name})
+        return response.content
+
+    def _get_final_summary(self, tco_report: str, failure_reports: str) -> str:
+        """
+        Prywatna metoda generująca ostateczne podsumowanie i werdykt.
+        """
+        prompt_template = ChatPromptTemplate.from_template(
+            """
+            Jesteś doświadczonym dyrektorem floty. Twoim zadaniem jest sformułowanie ostatecznego werdyktu na podstawie dwóch dostarczonych analiz: analizy kosztów (TCO) i analizy awaryjności. Twoja odpowiedź MUSI być kodem HTML.
+
+            **ANALIZA KOSZTÓW (TCO):**
+            ---
+            {tco_report}
+            ---
+
+            **ANALIZA AWARYJNOŚCI:**
+            ---
+            {failure_reports}
+            ---
+
+            **ZADANIE:**
+            1.  **Zważ oba czynniki:** Koszt i ryzyko awarii.
+            2.  **Sformułuj ostateczną rekomendację:** Wskaż, który samochód jest najbardziej optymalnym wyborem, biorąc pod uwagę zarówno niskie koszty, jak i akceptowalny poziom niezawodności.
+            3.  **Uzasadnij swój wybór:** Wyjaśnij, dlaczego rekomendowany model jest lepszy od pozostałych. Może się zdarzyć, że model z najniższym TCO ma wysokie ryzyko drogich awarii, co czyni go nieoptymalnym. Musisz to zauważyć i skomentować.
+
+            Użyj poniższej struktury HTML:
+            <hr>
+            <h3>Podsumowanie i Ostateczny Werdykt</h3>
+            <div class="card summary-card">
+                <div class="card-header">
+                    <span class="badge-summary">Werdykt</span>
+                    <h5>Rekomendacja Optymalnego Wyboru</h5>
+                </div>
+                <div class="card-body">
+                    <p>[Tutaj umieść swoje szczegółowe podsumowanie i uzasadnienie ostatecznego wyboru, ważąc koszty TCO i ryzyko awarii.]</p>
+                    <p><strong>Ostateczny rekomendowany model:</strong> [Pełna nazwa optymalnego samochodu]</p>
+                </div>
+            </div>
+            """
+        )
+        chain = prompt_template | self.summary_model
+        response = chain.invoke({
+            "tco_report": tco_report,
+            "failure_reports": failure_reports
+        })
+        return response.content
+
+    def get_car_recommendation(self, criteria: dict) -> str:
+        """
+        Główna metoda, która orkiestruje cały proces: TCO -> Awaryjność -> Podsumowanie.
+        """
+        # Etap 1: Uzyskaj analizę TCO i listę aut
+        tco_response_str = ""
+        try:
+            tco_response_str = self._get_tco_analysis(criteria)
+            cleaned_json_str = tco_response_str.strip().removeprefix("```json").removesuffix("```").strip()
+            tco_data = json.loads(cleaned_json_str)
+            tco_html_report = tco_data.get("html_report", "<p>Błąd w raporcie HTML analizy TCO.</p>")
+            recommended_cars = tco_data.get("recommended_cars", [])
+        except (json.JSONDecodeError, KeyError) as e:
+            print(f"Błąd przetwarzania odpowiedzi TCO: {e}")
+            return f"<p>Wystąpił błąd podczas analizy TCO. Otrzymano nieprawidłowy format JSON.</p><pre>{tco_response_str}</pre>"
+
+        if not recommended_cars:
+            return tco_html_report
+
+        # Etap 2: Dla każdego polecanego auta, uzyskaj analizę awaryjności
+        failure_reports_html = ""
+        for car in recommended_cars:
+            try:
+                failure_report = self._get_failure_analysis(car)
+                failure_reports_html += failure_report
+            except Exception as e:
+                print(f"Błąd podczas analizy awaryjności dla {car}: {e}")
+                failure_reports_html += f"<p>Nie udało się przeprowadzić analizy awaryjności dla {car}.</p>"
+
+        # Etap 3: Uzyskaj ostateczne podsumowanie
+        final_summary_html = ""
+        try:
+            # Tworzymy uproszczony raport TCO do podsumowania, aby nie przekroczyć limitu tokenów
+            summary_tco_context = tco_html_report
+            final_summary_html = self._get_final_summary(summary_tco_context, failure_reports_html)
+        except Exception as e:
+            print(f"Błąd podczas generowania ostatecznego podsumowania: {e}")
+            final_summary_html = "<p>Nie udało się wygenerować ostatecznego podsumowania.</p>"
+
+        # Etap 4: Połącz wszystkie raporty w jedną odpowiedź HTML
+        final_html_report = tco_html_report + "<hr><h3>Analiza Awaryjności i Niezawodności</h3>" + failure_reports_html + final_summary_html
+        return final_html_report
