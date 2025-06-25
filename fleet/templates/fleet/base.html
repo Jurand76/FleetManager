@@ -6,9 +6,9 @@
     <title>Asystent Floty AI</title>
 
     <!-- Google Fonts -->
-    <link rel="preconnect" href="[https://fonts.googleapis.com](https://fonts.googleapis.com)">
-    <link rel="preconnect" href="[https://fonts.gstatic.com](https://fonts.gstatic.com)" crossorigin>
-    <link href="[https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap](https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap)" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 
     <!-- Tom Select CSS -->
     <link href="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/css/tom-select.bootstrap5.css" rel="stylesheet">
@@ -138,6 +138,27 @@
         .tco-table tfoot strong { font-size: 1.1rem; color: var(--primary-color); }
         .alternatives-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: 1rem; }
         .alternative-card { border-left: 5px solid #ffc107; }
+
+        /* --- STYLE DLA WERDYKTU --- */
+        .final-verdict-container { margin-top: 2rem; padding: 2rem; background: linear-gradient(135deg, #f0f7ff 0%, #ffffff 100%); border-radius: 12px; }
+        .verdict-header { text-align: center; margin-bottom: 1.5rem; display: flex; align-items: center; justify-content: center; gap: 1rem;}
+        .crown-icon { color: #ffc107; }
+        .verdict-title { font-size: 2rem; font-weight: 700; color: var(--primary-color); margin: 0;}
+        .summary-card { border-left: 5px solid #0d6efd; box-shadow: none; border: 1px solid var(--border-color); }
+        .summary-text { font-size: 1.1rem; margin-bottom: 2rem; }
+        .winner-announcement { text-align: center; padding: 1.5rem; background-color: #e9f5ff; border: 2px dashed var(--primary-color); border-radius: 8px; }
+        .winner-title { margin: 0 0 0.5rem 0; font-size: 1.1rem; font-weight: 500; color: var(--label-color); text-transform: uppercase; }
+        .winner-car-name { margin: 0; font-size: 2.25rem; font-weight: 700; color: #198754; }
+
+        /* Style dla obrazka zwycięzcy */
+        .winner-image-placeholder { margin-bottom: 1.5rem; }
+        .winner-image {
+            max-width: 100%;
+            height: auto;
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        }
+
     </style>
 </head>
 <body>

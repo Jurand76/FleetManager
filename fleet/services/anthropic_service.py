@@ -77,7 +77,8 @@ class AnthropicService:
             ZADANIE:
             1. Znajdź w kontekście WSZYSTKIE samochody (do 5) spełniające najważniejsze kryteria (klasa, paliwo).
             2. Dla każdego z nich oblicz TCO (Utrata Wartości + Koszt Paliwa + Koszt Serwisu), bazując na danych z kontekstu.
-            3. Wypełnij szablon HTML wynikami. Pokaż 1 auto jako główną rekomendację (najniższe TCO) i resztę jako alternatywy.
+            3. Utratę Wartości wylicz biorąc w pierwszej kolejności do wyliczeń wartości rezydualne po określonej liczbie lat, są w kontekście, jeśli ich nie znajdziesz - aproksymuj dla średniej z danego segmentu samochodów.
+            4. Wypełnij szablon HTML wynikami. Pokaż 1 auto jako główną rekomendację (najniższe TCO) i resztę jako alternatywy.
             4. **Krytycznie ważne:** Zidentyfikuj WSZYSTKIE analizowane modele i umieść ich pełne nazwy w liście JSON `recommended_cars`. Jeśli w raporcie HTML są 4 samochody, na liście muszą być 4 nazwy.
 
             SZABLON HTML:
@@ -139,14 +140,14 @@ class AnthropicService:
             <div class="card failure-card">
                 <div class="card-header">
                      <span class="badge-failure">Analiza Awaryjności</span>
-                     <h5>{car_name}</h5>
+                     <h3>{car_name}</h3>
                 </div>
                 <div class="card-body">
-                    <h6>Najczęstsze Usterki:</h6>
+                    <h4>Najczęstsze Usterki:</h4>
                     <ul><li>[Opis usterki 1]</li><li>[Opis usterki 2]</li><li>[Opis usterki 3]</li></ul>
-                    <h6>Akcje Serwisowe:</h6>
+                    <h4>Akcje Serwisowe:</h4>
                     <p>[Informacje o akcjach serwisowych lub ich braku.]</p>
-                    <h6>Podsumowanie Niezawodności:</h6>
+                    <h4>Podsumowanie Niezawodności:</h4>
                     <p>[Ogólna opinia o modelu.]</p>
                 </div>
             </div>
@@ -179,17 +180,21 @@ class AnthropicService:
             2.  **Sformułuj ostateczną rekomendację:** Wskaż, który samochód jest najbardziej optymalnym wyborem, biorąc pod uwagę zarówno niskie koszty, jak i akceptowalny poziom niezawodności.
             3.  **Uzasadnij swój wybór:** Wyjaśnij, dlaczego rekomendowany model jest lepszy od pozostałych. Może się zdarzyć, że model z najniższym TCO ma wysokie ryzyko drogich awarii, co czyni go nieoptymalnym. Musisz to zauważyć i skomentować.
 
-            Użyj poniższej struktury HTML:
+            Użyj poniższej struktury, aby wyróżnić ostateczny werdykt.
             <hr>
-            <h3>Podsumowanie i Ostateczny Werdykt</h3>
-            <div class="card summary-card">
-                <div class="card-header">
-                    <span class="badge-summary">Werdykt</span>
-                    <h5>Rekomendacja Optymalnego Wyboru</h5>
+            <div class="final-verdict-container">
+                <div class="verdict-header">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="crown-icon"><path d="m2 6 3 12h14l3-12-6 7-4-7-4 7-6-7Z"/></svg>
+                    <h3 class="verdict-title">Ostateczny Werdykt</h3>
                 </div>
-                <div class="card-body">
-                    <p>[Tutaj umieść swoje szczegółowe podsumowanie i uzasadnienie ostatecznego wyboru, ważąc koszty TCO i ryzyko awarii.]</p>
-                    <p><strong>Ostateczny rekomendowany model:</strong> [Pełna nazwa optymalnego samochodu]</p>
+                <div class="card summary-card">
+                    <div class="card-body">
+                        <p class="summary-text">[Tutaj umieść swoje szczegółowe podsumowanie i uzasadnienie ostatecznego wyboru, ważąc koszty TCO i ryzyko awarii.]</p>
+                        <div class="winner-announcement">
+                            <p class="winner-title">Rekomendacja Optymalnego Wyboru:</p>
+                            <p class="winner-car-name">[Pełna nazwa optymalnego samochodu]</p>
+                        </div>
+                    </div>
                 </div>
             </div>
             """
@@ -233,7 +238,6 @@ class AnthropicService:
         # Etap 3: Uzyskaj ostateczne podsumowanie
         final_summary_html = ""
         try:
-            # Tworzymy uproszczony raport TCO do podsumowania, aby nie przekroczyć limitu tokenów
             summary_tco_context = tco_html_report
             final_summary_html = self._get_final_summary(summary_tco_context, failure_reports_html)
         except Exception as e:
